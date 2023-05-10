@@ -1,9 +1,16 @@
-use thiserror::Error;
+//! Main crate Error
 
-#[derive(Error, Debug)]
-pub enum ReadPlaylistError {
-    #[error("failed to read/create file")]
-    IOError(#[from] std::io::Error),
-    #[error("failed to deserialize json")]
-    DeserializeError(#[from] serde_json::Error),
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Request failed {0}")]
+    Request(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
+
+    #[error("Failed to serialize/deserialize")]
+    Serialize(#[from] serde_json::Error),
+
+    #[error("Failed loading var from env")]
+    Var(#[from] std::env::VarError),
 }

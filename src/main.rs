@@ -1,15 +1,17 @@
 mod args;
 mod error;
 mod playlist;
+mod prelude;
 mod youtube_api;
 
 use crate::args::Args;
 use crate::playlist::{load_playlist, Playlist, Video};
+use crate::prelude::*;
 use clap::Parser;
 use dotenv::dotenv;
 
 #[tokio::main]
-async fn main() -> Result<(), reqwest::Error> {
+async fn main() -> Result<()> {
     dotenv().ok();
 
     let file_path: String = String::from("./");
@@ -34,12 +36,12 @@ async fn main() -> Result<(), reqwest::Error> {
 
     playlist.add_videos(&mut videos);
 
-    playlist.fetch_metadata().await;
+    playlist.fetch_metadata().await?;
 
     match &arguments.playlist_name {
         None => (),
         Some(_) => {
-            playlist::save_playlist(&playlist, "./");
+            playlist::save_playlist(&playlist, "./")?;
         }
     }
 
