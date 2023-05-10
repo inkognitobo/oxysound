@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 
     let mut playlist = match &arguments.playlist_name {
         // If no playlist name provided, create an temporary empty one
-        None => Playlist::new("tmp", vec![]),
+        None => Playlist::new("tmp"),
         // Otherwise try to load the specified playlist
         Some(playlist_name) => match load_playlist(playlist_name, &file_path) {
             Ok(playlist) => playlist,

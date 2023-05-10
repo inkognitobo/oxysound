@@ -53,7 +53,6 @@ impl PartialEq for Video {
 }
 
 impl Video {
-    /// Constructor
     pub fn new(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
@@ -93,8 +92,14 @@ impl Default for Playlist {
 }
 
 impl Playlist {
-    /// Constructor
-    pub fn new(title: impl Into<String>, videos: Vec<Video>) -> Self {
+    pub fn new(title: impl Into<String>) -> Self {
+        Self {
+            title: title.into(),
+            ..Default::default()
+        }
+    }
+
+    pub fn new_with_videos(title: impl Into<String>, videos: Vec<Video>) -> Self {
         Self {
             title: title.into(),
             videos,
@@ -190,7 +195,7 @@ pub fn load_playlist(playlist_title: &str, file_path: &str) -> Result<Playlist> 
 
     match load_or_create_file(&file_path)? {
         Some(playlist_json) => Ok(serde_json::from_str(&playlist_json)?),
-        None => Ok(Playlist::new(playlist_title, vec![])),
+        None => Ok(Playlist::new(playlist_title)),
     }
 }
 
@@ -252,7 +257,14 @@ mod tests {
     #[test]
     fn test_playlist() {
         assert_eq!(
-            Playlist::new(
+            Playlist::new("test",),
+            Playlist {
+                title: "test".into(),
+                ..Default::default()
+            }
+        );
+        assert_eq!(
+            Playlist::new_with_videos(
                 "test",
                 vec!["id_1".to_string().into(), "id_2".to_string().into()]
             ),
