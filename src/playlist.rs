@@ -15,23 +15,34 @@ pub struct Video {
     url: String,
 }
 
-impl Video {
-    /// Constructor to create a video instance with just the `id` field populated
-    pub fn from_id(id: String) -> Self {
-        let mut video = Video {
-            id,
-            title: String::from(""),
-            published_at: String::from(""),
-            url: String::from(""),
+impl Default for Video {
+    fn default() -> Self {
+        let mut video = Self {
+            id: "".into(),
+            title: "".into(),
+            published_at: "".into(),
+            url: "https://www.youtube.com/watch?v=".into(),
         };
-        video.url = video.get_url();
+        video.update_fields();
         video
     }
+}
 
-    /// Concatenate video url using the video's ID
-    fn get_url(&self) -> String {
-        const BASE_URL: &str = "https://www.youtube.com/watch?v=";
-        format!("{}{}", BASE_URL, self.id)
+impl From<String> for Video {
+    fn from(value: String) -> Self {
+        Self {
+            id: value.into(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ResponseItem> for Video {
+    fn from(value: ResponseItem) -> Self {
+        Self {
+            id: value.id,
+            ..Default::default()
+        }
     }
 }
 
@@ -41,59 +52,99 @@ impl PartialEq for Video {
     }
 }
 
-impl From<ResponseItem> for Video {
-    fn from(value: ResponseItem) -> Self {
-        let mut video = Video {
-            id: value.id,
-            title: value.snippet.title,
-            published_at: value.snippet.published_at,
-            url: String::from(""),
-        };
-        video.url = video.get_url();
-        video
+impl Video {
+    /// Constructor
+    pub fn new(id: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            ..Default::default()
+        }
+    }
+
+    /// Update fields that depend on other fields
+    /// e.g. `self.url` depends on `self.id`
+    fn update_fields(&mut self) {
+        const BASE_URL: &str = "https://www.youtube.com/watch?v=";
+        self.url = format!("{}{}", BASE_URL, self.id);
     }
 }
 
 /// Data structure for a playlist
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Playlist {
-    name: String,
+    title: String,
     num_items: u8,
     videos: Vec<Video>,
     url: String,
 }
 
-impl Playlist {
-    /// Constructor
-    pub fn new(name: &str, videos: Vec<Video>) -> Self {
-        let mut playlist = Playlist {
-            name: name.to_string(),
-            num_items: videos.len() as u8,
-            videos,
-            url: String::from(""),
+impl Default for Playlist {
+    fn default() -> Self {
+        let mut playlist = Self {
+            title: "untitled".into(),
+            num_items: 0,
+            videos: Vec::new(),
+            url: "http://www.youtube.com/watch_videos?video_ids=".into(),
         };
-        todo!("Use default");
-        playlist.url = compose_playlist_url(&playlist.videos);
+        playlist.update_fields();
         playlist
     }
+}
 
-    /// Getter for url
-    pub fn url(&self) -> &str {
-        &self.url
+impl Playlist {
+    /// Constructor
+    pub fn new(title: impl Into<String>, videos: Vec<Video>) -> Self {
+        Self {
+            title: title.into(),
+            videos,
+            ..Default::default()
+        }
+    }
+
+    /// Update fields that depend on other fields
+    /// e.g. `self.num_items` depends on `self.videos`
+    fn update_fields(&mut self) {
+        self.num_items = self.videos.len() as u8;
+        self.url = self.compose_playlist_url();
     }
 
     /// Add videos to the playlist
     ///
     /// New videos are added to `self.videos` (duplicates are ignored)
-    /// `self.num_items` and `self.url` are updated accordingly
-    /// * `videos` - list of `Video` data structure containing video meta data
-    pub fn add_videos(&mut self, videos: &mut Vec<Video>) {
+    /// Fields are then updated accordingly
+    /// * `ids` - list of video IDs
+    pub fn add_videos(&mut self, ids: &[String]) {
+        let mut videos = ids
+            .iter()
+            .map(|id| id.to_string())
+            .map(Video::from)
+            .collect::<Vec<Video>>();
         videos.retain(|video| !self.videos.contains(video));
 
-        self.num_items += videos.len() as u8;
-        self.videos.append(videos);
-        self.url = compose_playlist_url(&self.videos);
+        self.videos.append(&mut videos);
+        self.update_fields();
+    }
+
+    /// Remove videos from the playlist
+    pub fn remove_videos(&mut self, ids: &[String]) {
+        self.videos.retain(|video| !ids.contains(&video.id));
+        self.update_fields();
+    }
+
+    /// Return a `String` containing the playlist URL
+    ///
+    /// The URL is composed using the base url and a comma separated list of video IDs
+    fn compose_playlist_url(&self) -> String {
+        const BASE_URL: &str = "http://www.youtube.com/watch_videos?video_ids=";
+
+        let ids: Vec<String> = self
+            .videos
+            .iter()
+            .map(|video| video.id.to_string())
+            .collect();
+
+        format!("{}{}", &BASE_URL, &ids.join(","))
     }
 
     /// Use YouTube's API to accumulate video meta data in `self.videos`
@@ -103,49 +154,43 @@ impl Playlist {
             .iter()
             .map(|video| video.id.to_string())
             .collect();
-        if let Ok(response) = youtube_api::make_video_request(&ids).await {
-            self.videos = response.items.into_iter().map(Video::from).collect();
-        }
+        let response = youtube_api::make_video_request(&ids).await?;
+        self.videos = response.items.into_iter().map(Video::from).collect();
+        Ok(())
+    }
+
+    /// Serialize a `Playlist` instance and write content to a JSON file using the playlist's title as file name
+    /// * `file_path` - path to the save directory
+    pub fn save_playlist(&self, file_path: &str) -> Result<()> {
+        let file_path = format!("{}{}{}", &file_path, self.title, ".json");
+
+        let playlist_json: String = serde_json::to_string(self)?;
+        fs::write(file_path, playlist_json)?;
+
         Ok(())
     }
 }
 
-/// Return a `String` containing the playlist URL
-///
-/// Compose the playlist url using the base url and a comma separated list of video IDs
-/// * `videos` - array of `Video`s that each contain valid YouTube IDs
-pub fn compose_playlist_url(videos: &[Video]) -> String {
-    const BASE_URL: &str = "http://www.youtube.com/watch_videos?video_ids=";
-
-    let ids: Vec<String> = videos.iter().map(|video| video.id.to_string()).collect();
-
-    format!("{}{}", &BASE_URL, &ids.join(","))
-}
-
-/// Serialize a `Playlist` instance and write content to a JSON file using the playlist's name as file name
-/// * `playlist` - data structure containing playlist metadata
-/// * `file_path` - path to the save directory
-pub fn save_playlist(playlist: &Playlist, file_path: &str) -> Result<()> {
-    let file_path = format!("{}{}{}", &file_path, &playlist.name, ".json");
-
-    let playlist_json: String = serde_json::to_string(&playlist)?;
-    fs::write(file_path, playlist_json)?;
-
-    Ok(())
+/// Getter/setter functions
+impl Playlist {
+    /// URL
+    pub fn url(&self) -> &str {
+        &self.url
+    }
 }
 
 /// Return a `Playlist` instance.
 ///
 /// Try to load content from a JSON file and deserialize into `Playlist` instance
-/// If `load_or_create_file` returns `Ok(None)`, return an empty playlist named `playlist_name`
-/// * `playlist_name` - name of the playlist which is used as file name
+/// If `load_or_create_file` returns `Ok(None)`, return an empty playlist named `playlist_title`
+/// * `playlist_title` - name of the playlist
 /// * `file_path` - path to the save directory
-pub fn load_playlist(playlist_name: &str, file_path: &str) -> Result<Playlist> {
-    let file_path = format!("{}{}{}", &file_path, &playlist_name, ".json");
+pub fn load_playlist(playlist_title: &str, file_path: &str) -> Result<Playlist> {
+    let file_path = format!("{}{}{}", &file_path, playlist_title, ".json");
 
     match load_or_create_file(&file_path)? {
         Some(playlist_json) => Ok(serde_json::from_str(&playlist_json)?),
-        None => Ok(Playlist::new(playlist_name, vec![])),
+        None => Ok(Playlist::new(playlist_title, vec![])),
     }
 }
 
@@ -172,16 +217,147 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_compose_playlist_url() {
+    fn test_video() {
         assert_eq!(
-            compose_playlist_url(&[
-                Video::from_id(String::from("test_id1")),
-                Video::from_id(String::from("test_id2")),
-                Video::from_id(String::from("test_id3")),
-            ]),
-            String::from(
-                "http://www.youtube.com/watch_videos?video_ids=test_id1,test_id2,test_id3"
-            )
+            Video::new("id_1"),
+            Video {
+                id: "id_1".into(),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn test_update_fields_video() {
+        let mut video = Video {
+            id: "id_1".into(),
+            ..Default::default()
+        };
+        video.update_fields();
+
+        assert_eq!(
+            video.url,
+            "https://www.youtube.com/watch?v=id_1".to_string()
+        );
+        assert_eq!(
+            video,
+            Video {
+                id: "id_1".into(),
+                url: "https://www.youtube.com/watch?v=id_1".into(),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn test_playlist() {
+        assert_eq!(
+            Playlist::new(
+                "test",
+                vec!["id_1".to_string().into(), "id_2".to_string().into()]
+            ),
+            Playlist {
+                title: "test".into(),
+                videos: vec!["id_1".to_string().into(), "id_2".to_string().into()],
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn test_add_videos() {
+        let mut playlist = Playlist {
+            title: "test".into(),
+            ..Default::default()
+        };
+        playlist.add_videos(&["id_1".into(), "id_2".into()]);
+
+        assert_eq!(
+            playlist,
+            Playlist {
+                title: "test".into(),
+                num_items: 2,
+                videos: vec![
+                    Video {
+                        id: "id_1".into(),
+                        ..Default::default()
+                    },
+                    Video {
+                        id: "id_2".into(),
+                        ..Default::default()
+                    }
+                ],
+                url: "http://www.youtube.com/watch_videos?video_ids=id_1,id_2".into()
+            }
+        );
+    }
+
+    #[test]
+    fn test_remove_videos() {
+        let mut playlist = Playlist {
+            title: "test".into(),
+            num_items: 2,
+            videos: vec!["id_1".to_string().into(), "id_2".to_string().into()],
+            url: "http://www.youtube.com/watch_videos?video_ids=id_1,id_2".into(),
+        };
+        playlist.remove_videos(&["id_1".into(), "id_2".into()]);
+
+        assert_eq!(
+            playlist,
+            Playlist {
+                title: "test".into(),
+                num_items: 0,
+                videos: vec![],
+                url: "http://www.youtube.com/watch_videos?video_ids=".into()
+            }
+        );
+    }
+
+    #[test]
+    fn test_compose_url() {
+        let playlist = Playlist {
+            title: "test".into(),
+            videos: vec!["id_1".to_string().into(), "id_2".to_string().into()],
+            ..Default::default()
+        };
+
+        assert_eq!(
+            playlist.compose_playlist_url(),
+            "http://www.youtube.com/watch_videos?video_ids=id_1,id_2".to_string()
+        );
+    }
+
+    #[test]
+    fn test_update_fields_playlist() {
+        let mut playlist = Playlist {
+            title: "test".into(),
+            videos: vec!["id_1".to_string().into(), "id_2".to_string().into()],
+            ..Default::default()
+        };
+        playlist.update_fields();
+
+        assert_eq!(playlist.num_items, 2);
+        assert_eq!(
+            playlist.url,
+            "http://www.youtube.com/watch_videos?video_ids=id_1,id_2".to_string()
+        );
+        assert_eq!(
+            playlist,
+            Playlist {
+                title: "test".into(),
+                num_items: 2,
+                videos: vec![
+                    Video {
+                        id: "id_1".into(),
+                        ..Default::default()
+                    },
+                    Video {
+                        id: "id_2".into(),
+                        ..Default::default()
+                    },
+                ],
+                url: "http://www.youtube.com/watch_videos?video_ids=id_1,id_2".into()
+            }
         );
     }
 }
