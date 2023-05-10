@@ -13,6 +13,7 @@ pub struct Video {
     title: String,
     published_at: String,
     url: String,
+    fetched: bool,
 }
 
 impl Default for Video {
@@ -22,6 +23,7 @@ impl Default for Video {
             title: "".into(),
             published_at: "".into(),
             url: "https://www.youtube.com/watch?v=".into(),
+            fetched: false,
         };
         video.update_fields();
         video
@@ -41,6 +43,7 @@ impl From<ResponseItem> for Video {
     fn from(value: ResponseItem) -> Self {
         Self {
             id: value.id,
+            fetched: true,
             ..Default::default()
         }
     }
@@ -153,10 +156,12 @@ impl Playlist {
     }
 
     /// Use YouTube's API to accumulate video meta data in `self.videos`
+    /// Only request data for videos, that attached meta data yet
     pub async fn fetch_metadata(&mut self) -> Result<()> {
         let ids: Vec<String> = self
             .videos
             .iter()
+            .filter(|video| !video.fetched)
             .map(|video| video.id.to_string())
             .collect();
         let response = youtube_api::make_video_request(&ids).await?;
