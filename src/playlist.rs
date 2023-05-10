@@ -42,7 +42,9 @@ impl From<String> for Video {
 impl From<ResponseItem> for Video {
     fn from(value: ResponseItem) -> Self {
         Self {
-            id: value.id,
+            id: value.id.into(),
+            title: value.snippet.title.into(),
+            published_at: value.snippet.published_at.into(),
             fetched: true,
             ..Default::default()
         }
@@ -225,6 +227,7 @@ fn load_or_create_file(file_path: &str) -> Result<Option<String>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dotenv::dotenv;
 
     #[test]
     fn test_video() {
@@ -376,5 +379,33 @@ mod tests {
                 url: "http://www.youtube.com/watch_videos?video_ids=id_1,id_2".into()
             }
         );
+    }
+    #[tokio::test]
+    async fn test_fetch_metadata() -> Result<()> {
+        dotenv().ok();
+
+        let mut playlist =
+            Playlist::new_with_videos("test", vec!["dQw4w9WgXcQ".to_string().into()]);
+        playlist.fetch_metadata().await?;
+
+        assert_eq!(
+            playlist
+                .videos
+                .iter()
+                .filter(|video| !video.fetched)
+                .count(),
+            0
+        );
+        assert_eq!(
+            playlist
+                .videos
+                .iter()
+                .next()
+                .expect("Test playlist should have one video")
+                .title,
+            "Rick Astley - Never Gonna Give You Up (Official Music Video)"
+        );
+
+        Ok(())
     }
 }
