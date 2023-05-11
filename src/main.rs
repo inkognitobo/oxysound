@@ -4,8 +4,8 @@ mod playlist;
 mod prelude;
 mod youtube_api;
 
-use crate::args::Args;
-use crate::playlist::{load_playlist, Playlist};
+use crate::args::{Arguments, Operation};
+use crate::playlist::{load_playlist, Playlist, Video};
 use crate::prelude::*;
 use clap::Parser;
 use dotenv::dotenv;
@@ -16,30 +16,40 @@ async fn main() -> Result<()> {
 
     let file_path: String = String::from("./");
 
-    let mut arguments = Args::parse();
+    let arguments = Arguments::parse();
 
-    let mut playlist = match &arguments.playlist_name {
-        // If no playlist name provided, create an temporary empty one
-        None => Playlist::new("tmp"),
-        // Otherwise try to load the specified playlist
-        Some(playlist_name) => match load_playlist(playlist_name, &file_path) {
-            Ok(playlist) => playlist,
-            Err(error) => panic!("There was a problem loading the playlist: {:?}", error),
-        },
+    let playlist = match arguments.operation {
+        Operation::Create(create_args) => {
+            let mut playlist = match create_args.ids {
+                Some(ids) => {
+                    let videos = ids
+                        .iter()
+                        .map(|id| id.to_string())
+                        .map(|id| Video::from(id))
+                        .collect();
+                    Playlist::new_with_videos(&create_args.playlist_title, videos)
+                }
+                None => Playlist::new(&create_args.playlist_title),
+            };
+            playlist.fetch_metadata().await?;
+            playlist
+        }
+        Operation::Add(add_args) => {
+            let mut playlist = load_playlist(&add_args.playlist_title, &file_path)?;
+            playlist.add_videos(&add_args.ids);
+            playlist.fetch_metadata().await?;
+            playlist
+        }
+        Operation::Remove(remove_args) => {
+            let mut playlist = load_playlist(&remove_args.playlist_title, &file_path)?;
+            playlist.remove_videos(&remove_args.ids);
+            playlist
+        }
     };
 
-    playlist.add_videos(&mut arguments.ids);
-
-    playlist.fetch_metadata().await?;
-
-    // If there was a name specified, the playlist is to be saved
-    match &arguments.playlist_name {
-        None => (),
-        Some(_) => {
-            playlist.save_playlist("./")?;
-        }
-    }
+    playlist.save_playlist(file_path)?;
 
     println!("Playlist URL:\n{:?}", playlist.url());
+
     Ok(())
 }
