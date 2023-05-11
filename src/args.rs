@@ -23,7 +23,7 @@ pub enum Operation {
 #[derive(Debug, Args)]
 pub struct CreateArgs {
     /// Title of the playlist
-    #[arg(short, long, required = true)]
+    #[arg(short = 't', long, required = true)]
     pub playlist_title: String,
     /// Space separated list of video IDs
     #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = false)]
@@ -33,7 +33,7 @@ pub struct CreateArgs {
 #[derive(Debug, Args)]
 pub struct ModifyArgs {
     /// Title of the playlist
-    #[arg(short, long, required = true)]
+    #[arg(short = 't', long, required = true)]
     pub playlist_title: String,
     /// Space separated list of video IDs
     #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
@@ -44,7 +44,7 @@ pub struct ModifyArgs {
 #[group(multiple = false, required = true)]
 pub struct PrintArgs {
     /// Title of the playlist
-    #[arg(short, long, required = false)]
+    #[arg(short = 't', long, required = false)]
     pub playlist_title: Option<String>,
     /// Space separated list of video IDs
     #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = false)]
