@@ -13,9 +13,11 @@ pub enum Operation {
     /// Create new playlist
     Create(CreateArgs),
     /// Add videos to existing playlist
-    Add(AddArgs),
+    Add(ModifyArgs),
     /// Remove videos from existing playlist
-    Remove(RemoveArgs),
+    Remove(ModifyArgs),
+    /// Print playlist URL of an existing playlist or list of IDs
+    Print(PrintArgs),
 }
 
 #[derive(Debug, Args)]
@@ -29,7 +31,7 @@ pub struct CreateArgs {
 }
 
 #[derive(Debug, Args)]
-pub struct AddArgs {
+pub struct ModifyArgs {
     /// Title of the playlist
     #[arg(short, long, required = true)]
     pub playlist_title: String,
@@ -39,11 +41,12 @@ pub struct AddArgs {
 }
 
 #[derive(Debug, Args)]
-pub struct RemoveArgs {
+#[group(multiple = false, required = true)]
+pub struct PrintArgs {
     /// Title of the playlist
-    #[arg(short, long, required = true)]
-    pub playlist_title: String,
+    #[arg(short, long, required = false)]
+    pub playlist_title: Option<String>,
     /// Space separated list of video IDs
-    #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
-    pub ids: Vec<String>,
+    #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = false)]
+    pub ids: Option<Vec<String>>,
 }

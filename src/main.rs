@@ -18,9 +18,9 @@ async fn main() -> Result<()> {
 
     let arguments = Arguments::parse();
 
-    let playlist = match arguments.operation {
+    let playlist = match &arguments.operation {
         Operation::Create(create_args) => {
-            let mut playlist = match create_args.ids {
+            let mut playlist = match &create_args.ids {
                 Some(ids) => {
                     let videos = ids
                         .iter()
@@ -34,22 +34,36 @@ async fn main() -> Result<()> {
             playlist.fetch_metadata().await?;
             playlist
         }
-        Operation::Add(add_args) => {
-            let mut playlist = load_playlist(&add_args.playlist_title, FILE_PATH)?;
-            playlist.add_videos(&add_args.ids);
+        Operation::Add(args) => {
+            let mut playlist = load_playlist(&args.playlist_title, FILE_PATH)?;
+            playlist.add_videos(&args.ids);
             playlist.fetch_metadata().await?;
             playlist
         }
-        Operation::Remove(remove_args) => {
-            let mut playlist = load_playlist(&remove_args.playlist_title, FILE_PATH)?;
-            playlist.remove_videos(&remove_args.ids);
+        Operation::Remove(args) => {
+            let mut playlist = load_playlist(&args.playlist_title, FILE_PATH)?;
+            playlist.remove_videos(&args.ids);
             playlist
         }
+        Operation::Print(args) => match (&args.playlist_title, &args.ids) {
+            (Some(playlist_title), None) => load_playlist(playlist_title, FILE_PATH)?,
+            (None, Some(ids)) => {
+                let mut playlist = Playlist::default();
+                playlist.add_videos(ids);
+                playlist
+            }
+            _ => Playlist::default(),
+            // Not reachable, because `PrintArgs.playlist_title` and `PrintArgs.ids` are mutually exclusive
+        },
     };
 
-    playlist.save_playlist(FILE_PATH)?;
-
     println!("Playlist URL:\n{:?}", playlist.url());
+
+    // Save the playlist depending on the selected operation
+    match arguments.operation {
+        Operation::Print(_) => (),
+        _ => playlist.save_playlist(FILE_PATH)?,
+    }
 
     Ok(())
 }
