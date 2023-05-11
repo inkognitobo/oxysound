@@ -59,15 +59,6 @@ impl PartialEq for Video {
 }
 
 impl Video {
-    pub fn new(id: impl Into<String>) -> Self {
-        let mut video = Self {
-            id: id.into(),
-            ..Default::default()
-        };
-        video.update_fields();
-        video
-    }
-
     /// Update fields that depend on other fields
     /// e.g. `self.url` depends on `self.id`
     fn update_fields(&mut self) {
@@ -253,7 +244,7 @@ mod tests {
     #[test]
     fn test_video() {
         assert_eq!(
-            Video::new("id_1"),
+            Video::from("id_1".to_string()),
             Video {
                 id: "id_1".into(),
                 ..Default::default()
