@@ -30,7 +30,7 @@ impl Default for Video {
 impl From<String> for Video {
     fn from(value: String) -> Self {
         let mut video = Self {
-            id: value.into(),
+            id: value,
             ..Default::default()
         };
         video.update_fields();
@@ -41,9 +41,9 @@ impl From<String> for Video {
 impl From<ResponseItem> for Video {
     fn from(value: ResponseItem) -> Self {
         let mut video = Self {
-            id: value.id.into(),
-            title: value.snippet.title.into(),
-            published_at: value.snippet.published_at.into(),
+            id: value.id,
+            title: value.snippet.title,
+            published_at: value.snippet.published_at,
             fetched: true,
             ..Default::default()
         };
@@ -221,7 +221,7 @@ pub fn load_playlist(
     let file_path = file_path.into();
     let file_path = format!("{}{}{}", file_path, playlist_title, ".json");
 
-    let playlist_json = load_file(&file_path)?;
+    let playlist_json = load_file(file_path)?;
     let playlist = serde_json::from_str(&playlist_json)?;
     Ok(playlist)
 }
@@ -232,7 +232,7 @@ pub fn load_playlist(
 /// * `file_path` - full file path (e.g. "./test.json")
 fn load_file(file_path: impl Into<String>) -> Result<String> {
     let file_path = file_path.into();
-    let content = fs::read_to_string(&file_path)?;
+    let content = fs::read_to_string(file_path)?;
     Ok(content)
 }
 
