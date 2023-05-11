@@ -2,8 +2,7 @@ use crate::error::Error;
 use crate::prelude::*;
 use crate::youtube_api::{self, ResponseItem};
 use serde::{Deserialize, Serialize};
-use std::fs::{self, File};
-use std::io::ErrorKind;
+use std::fs::{self};
 
 /// Data structure for video meta data
 #[derive(Debug, Deserialize, Serialize)]
@@ -18,36 +17,38 @@ pub struct Video {
 
 impl Default for Video {
     fn default() -> Self {
-        let mut video = Self {
+        Self {
             id: "".into(),
             title: "".into(),
             published_at: "".into(),
             url: "https://www.youtube.com/watch?v=".into(),
             fetched: false,
+        }
+    }
+}
+
+impl From<String> for Video {
+    fn from(value: String) -> Self {
+        let mut video = Self {
+            id: value.into(),
+            ..Default::default()
         };
         video.update_fields();
         video
     }
 }
 
-impl From<String> for Video {
-    fn from(value: String) -> Self {
-        Self {
-            id: value.into(),
-            ..Default::default()
-        }
-    }
-}
-
 impl From<ResponseItem> for Video {
     fn from(value: ResponseItem) -> Self {
-        Self {
+        let mut video = Self {
             id: value.id.into(),
             title: value.snippet.title.into(),
             published_at: value.snippet.published_at.into(),
             fetched: true,
             ..Default::default()
-        }
+        };
+        video.update_fields();
+        video
     }
 }
 
@@ -59,10 +60,12 @@ impl PartialEq for Video {
 
 impl Video {
     pub fn new(id: impl Into<String>) -> Self {
-        Self {
+        let mut video = Self {
             id: id.into(),
             ..Default::default()
-        }
+        };
+        video.update_fields();
+        video
     }
 
     /// Update fields that depend on other fields
@@ -85,31 +88,33 @@ pub struct Playlist {
 
 impl Default for Playlist {
     fn default() -> Self {
-        let mut playlist = Self {
+        Self {
             title: "untitled".into(),
             num_items: 0,
             videos: Vec::new(),
             url: "http://www.youtube.com/watch_videos?video_ids=".into(),
-        };
-        playlist.update_fields();
-        playlist
+        }
     }
 }
 
 impl Playlist {
     pub fn new(title: impl Into<String>) -> Self {
-        Self {
+        let mut playlist = Self {
             title: title.into(),
             ..Default::default()
-        }
+        };
+        playlist.update_fields();
+        playlist
     }
 
     pub fn new_with_videos(title: impl Into<String>, videos: Vec<Video>) -> Self {
-        Self {
+        let mut playlist = Self {
             title: title.into(),
             videos,
             ..Default::default()
-        }
+        };
+        playlist.update_fields();
+        playlist
     }
 
     /// Update fields that depend on other fields
@@ -137,6 +142,9 @@ impl Playlist {
     }
 
     /// Remove videos from the playlist
+    ///
+    /// If an invalid ID is provided (not in playlist), simply nothing happens
+    /// * `ids` - list of video IDs
     pub fn remove_videos(&mut self, ids: &[String]) {
         self.videos.retain(|video| !ids.contains(&video.id));
         self.update_fields();
@@ -158,7 +166,7 @@ impl Playlist {
     }
 
     /// Use YouTube's API to accumulate video meta data in `self.videos`
-    /// Only request data for videos, that attached meta data yet
+    /// Only request data for videos, that has no attached meta data yet
     pub async fn fetch_metadata(&mut self) -> Result<()> {
         let ids: Vec<String> = self
             .videos
@@ -166,14 +174,32 @@ impl Playlist {
             .filter(|video| !video.fetched)
             .map(|video| video.id.to_string())
             .collect();
+        let num_requested = ids.len();
         let response = youtube_api::make_video_request(&ids).await?;
-        self.videos = response.items.into_iter().map(Video::from).collect();
-        Ok(())
+
+        let mut newly_fetched = response
+            .items
+            .into_iter()
+            .map(Video::from)
+            .collect::<Vec<Video>>();
+        let num_fetched = newly_fetched.len();
+
+        if newly_fetched.len() == num_requested {
+            self.videos.retain(|video| video.fetched);
+            self.videos.append(&mut newly_fetched);
+            Ok(())
+        } else {
+            Err(Error::NotEnoughResponseItems(
+                num_requested as u8,
+                num_fetched as u8,
+            ))
+        }
     }
 
     /// Serialize a `Playlist` instance and write content to a JSON file using the playlist's title as file name
     /// * `file_path` - path to the save directory
-    pub fn save_playlist(&self, file_path: &str) -> Result<()> {
+    pub fn save_playlist(&self, file_path: impl Into<String>) -> Result<()> {
+        let file_path = file_path.into();
         let file_path = format!("{}{}{}", &file_path, self.title, ".json");
 
         let playlist_json: String = serde_json::to_string(self)?;
@@ -194,34 +220,29 @@ impl Playlist {
 /// Return a `Playlist` instance.
 ///
 /// Try to load content from a JSON file and deserialize into `Playlist` instance
-/// If `load_or_create_file` returns `Ok(None)`, return an empty playlist named `playlist_title`
 /// * `playlist_title` - name of the playlist
 /// * `file_path` - path to the save directory
-pub fn load_playlist(playlist_title: &str, file_path: &str) -> Result<Playlist> {
-    let file_path = format!("{}{}{}", &file_path, playlist_title, ".json");
+pub fn load_playlist(
+    playlist_title: impl Into<String>,
+    file_path: impl Into<String>,
+) -> Result<Playlist> {
+    let playlist_title = playlist_title.into();
+    let file_path = file_path.into();
+    let file_path = format!("{}{}{}", file_path, playlist_title, ".json");
 
-    match load_or_create_file(&file_path)? {
-        Some(playlist_json) => Ok(serde_json::from_str(&playlist_json)?),
-        None => Ok(Playlist::new(playlist_title)),
-    }
+    let playlist_json = load_file(&file_path)?;
+    let playlist = serde_json::from_str(&playlist_json)?;
+    Ok(playlist)
 }
 
-/// Return file content if file exists, else `None`
+/// Return file content if file exists
 ///
-/// If the file exists, return its content as `Some<String>`
-/// If the file does not exist, create it and return `None`
+/// Try to read file content to string
 /// * `file_path` - full file path (e.g. "./test.json")
-fn load_or_create_file(file_path: &str) -> Result<Option<String>> {
-    match fs::read_to_string(file_path) {
-        Ok(content) => Ok(Some(content)),
-        Err(error) => match error.kind() {
-            ErrorKind::NotFound => {
-                File::create(file_path)?;
-                Ok(None)
-            }
-            _ => Err(Error::IO(error)),
-        },
-    }
+fn load_file(file_path: impl Into<String>) -> Result<String> {
+    let file_path = file_path.into();
+    let content = fs::read_to_string(&file_path)?;
+    Ok(content)
 }
 
 #[cfg(test)]
