@@ -411,6 +411,7 @@ mod tests {
         );
     }
     #[tokio::test]
+    #[ignore = "test requires API key"]
     async fn test_fetch_metadata() -> Result<()> {
         let mut playlist = Playlist {
             title: "test".into(),
