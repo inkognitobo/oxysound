@@ -44,6 +44,6 @@ impl Config {
                 config_file_path,
             ));
         }
-        return Ok(self);
+        Ok(self)
     }
 }

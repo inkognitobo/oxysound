@@ -15,7 +15,7 @@ pub enum Error {
     IO(#[from] std::io::Error),
 
     #[error("Failed to serialize/deserialize JSON")]
-    JSON(#[from] serde_json::Error),
+    Json(#[from] serde_json::Error),
 
     #[error("Failed loading config")]
     Config(#[from] confy::ConfyError),
