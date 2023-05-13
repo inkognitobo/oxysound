@@ -1,5 +1,8 @@
 # oxysound
 
+![build](https://github.com/inkognitobo/oxysound/actions/workflows/rust_build.yml/badge.svg)
+![test](https://github.com/inkognitobo/oxysound/actions/workflows/rust_test.yml/badge.svg)
+
 Rust powered command line tool to create account independent YouTube playlists by composing a URL using `http://www.youtube.com/watch_videos?video_ids=` and a comma separated list of YouTube video IDs.
 
 Playlists can be created, modified and saved as `JSON` encoded files via the command line interface.
