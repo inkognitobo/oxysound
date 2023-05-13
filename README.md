@@ -1,15 +1,19 @@
 # oxysound
 
-## TODOs
+Rust powered command line tool to create account independant YouTube playlists by composing a URL using `http://www.youtube.com/watch_videos?video_ids=` and a comma separated list of YouTube video IDs.
 
-- only fetch meta data if necessary
-- allow to force add duplicates (via a flag)
-- allow to configure the save path in e.g. a .yaml file
-    - build configuration file into binary but also look at e.g. $HOME/.config/oxysound
-- switch cli arguments to subarguments with `create` `add` and `remove`
-- maybe use 
+Playlists can be created, modified and saved as `JSON` encoded files via the command line interface.
+
+To simply compose a playlist URL of a list of video IDs use the `print` operation:
 ```
-// region:      --- EXAMPLE
-// endregion:   --- EXAMPLE
+oxysound print --ids <IDS>...>
 ```
+
+All other operations will request video meta data (such as title, etc.) via YouTube's API and thus require a valid API key.
+
+The API key and save directory can be configured via a `config.toml` file. 
+When running e.g. `oxysound print --ids dQw4w9WgXcQ` for the first time, the application will ask the user to configure these values and inform them about the config file path.
+For example on linux the config file will be located at `$HOME/.config/oxysound/config.toml`.
+
+For more information run `oxysound --help`.
     
