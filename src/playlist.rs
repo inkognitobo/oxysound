@@ -1,8 +1,11 @@
+//! Main crate logic
+
 use crate::error::Error;
-use crate::prelude::*;
 use crate::youtube_api::{self, ResponseItem};
+use crate::{prelude::*, utils};
 use serde::{Deserialize, Serialize};
 use std::fs::{self};
+use std::path::PathBuf;
 
 /// Data structure for video meta data
 #[derive(Debug, Deserialize, Serialize)]
@@ -98,16 +101,6 @@ impl Playlist {
         playlist
     }
 
-    pub fn new_with_videos(title: impl Into<String>, videos: Vec<Video>) -> Self {
-        let mut playlist = Self {
-            title: title.into(),
-            videos,
-            ..Default::default()
-        };
-        playlist.update_fields();
-        playlist
-    }
-
     /// Update fields that depend on other fields
     /// e.g. `self.num_items` depends on `self.videos`
     fn update_fields(&mut self) {
@@ -165,17 +158,18 @@ impl Playlist {
             .filter(|video| !video.fetched)
             .map(|video| video.id.to_string())
             .collect();
-        let num_requested = ids.len();
-        let response = youtube_api::make_video_request(&ids).await?;
 
+        let response = youtube_api::make_video_request(&ids).await?;
         let mut newly_fetched = response
             .items
             .into_iter()
             .map(Video::from)
             .collect::<Vec<Video>>();
+
+        let num_requested = ids.len();
         let num_fetched = newly_fetched.len();
 
-        if newly_fetched.len() == num_requested {
+        if num_fetched == num_requested {
             self.videos.retain(|video| video.fetched);
             self.videos.append(&mut newly_fetched);
             Ok(())
@@ -191,7 +185,10 @@ impl Playlist {
     /// * `file_path` - path to the save directory
     pub fn save_playlist(&self, file_path: impl Into<String>) -> Result<()> {
         let file_path = file_path.into();
-        let file_path = format!("{}{}{}", &file_path, self.title, ".json");
+        let mut file_path: PathBuf = [&file_path, &self.title].iter().collect();
+        file_path.set_extension("json");
+
+        file_path = utils::expand_path_aliases(file_path);
 
         let playlist_json: String = serde_json::to_string(self)?;
         fs::write(file_path, playlist_json)?;
@@ -216,30 +213,47 @@ impl Playlist {
 pub fn load_playlist(
     playlist_title: impl Into<String>,
     file_path: impl Into<String>,
-) -> Result<Playlist> {
+) -> Result<Option<Playlist>> {
     let playlist_title = playlist_title.into();
     let file_path = file_path.into();
-    let file_path = format!("{}{}{}", file_path, playlist_title, ".json");
+    let mut file_path: PathBuf = [&file_path, &playlist_title].iter().collect();
+    file_path.set_extension("json");
 
-    let playlist_json = load_file(file_path)?;
-    let playlist = serde_json::from_str(&playlist_json)?;
-    Ok(playlist)
+    file_path = utils::expand_path_aliases(file_path);
+
+    match load_or_create_file(file_path)? {
+        None => Ok(None),
+        Some(playlist_json) => {
+            let playlist = serde_json::from_str(&playlist_json)?;
+            Ok(playlist)
+        }
+    }
 }
 
-/// Return file content if file exists
+/// Return file content if file exists, else create the file
 ///
-/// Try to read file content to string
+/// Try to read file content to `String`
+/// If the file exists, return content
+/// If the file doesn't exist, try to create it and return `None`
 /// * `file_path` - full file path (e.g. "./test.json")
-fn load_file(file_path: impl Into<String>) -> Result<String> {
-    let file_path = file_path.into();
-    let content = fs::read_to_string(file_path)?;
-    Ok(content)
+fn load_or_create_file(file_path: PathBuf) -> Result<Option<String>> {
+    let file_path = utils::expand_path_aliases(file_path);
+
+    match fs::read_to_string(&file_path) {
+        Ok(content) => Ok(Some(content)),
+        Err(error) => match error.kind() {
+            std::io::ErrorKind::NotFound => {
+                fs::File::create(&file_path)?;
+                Ok(None)
+            }
+            _ => Err(Error::from(error)),
+        },
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dotenv::dotenv;
 
     #[test]
     fn test_video() {
@@ -276,23 +290,27 @@ mod tests {
 
     #[test]
     fn test_playlist() {
+        let mut playlist_1 = Playlist {
+            title: "test".into(),
+            ..Default::default()
+        };
+        playlist_1.update_fields();
+        assert_eq!(Playlist::new("test",), playlist_1);
+
+        let mut playlist_2 = Playlist {
+            title: "test".into(),
+            videos: vec!["id_1".to_string().into(), "id_2".to_string().into()],
+            ..Default::default()
+        };
+        playlist_2.update_fields();
         assert_eq!(
-            Playlist::new("test",),
-            Playlist {
-                title: "test".into(),
-                ..Default::default()
-            }
-        );
-        assert_eq!(
-            Playlist::new_with_videos(
-                "test",
-                vec!["id_1".to_string().into(), "id_2".to_string().into()]
-            ),
             Playlist {
                 title: "test".into(),
                 videos: vec!["id_1".to_string().into(), "id_2".to_string().into()],
-                ..Default::default()
-            }
+                num_items: 2,
+                url: "http://www.youtube.com/watch_videos?video_ids=id_1,id_2".into()
+            },
+            playlist_2
         );
     }
 
@@ -394,10 +412,12 @@ mod tests {
     }
     #[tokio::test]
     async fn test_fetch_metadata() -> Result<()> {
-        dotenv().ok();
-
-        let mut playlist =
-            Playlist::new_with_videos("test", vec!["dQw4w9WgXcQ".to_string().into()]);
+        let mut playlist = Playlist {
+            title: "test".into(),
+            videos: vec!["dQw4w9WgXcQ".to_string().into()],
+            num_items: 1,
+            url: "http://www.youtube.com/watch_videos?video_ids=dQw4w9WgXcQ".into(),
+        };
         playlist.fetch_metadata().await?;
 
         assert_eq!(

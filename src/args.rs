@@ -1,3 +1,5 @@
+//! Handles everything related to CLI arguments
+
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -10,24 +12,12 @@ pub struct Arguments {
 
 #[derive(Debug, Subcommand)]
 pub enum Operation {
-    /// Create new playlist
-    Create(CreateArgs),
-    /// Add videos to existing playlist
+    /// Add videos to existing playlist or create new
     Add(ModifyArgs),
     /// Remove videos from existing playlist
     Remove(ModifyArgs),
     /// Print playlist URL of an existing playlist or list of IDs
     Print(PrintArgs),
-}
-
-#[derive(Debug, Args)]
-pub struct CreateArgs {
-    /// Title of the playlist
-    #[arg(short = 't', long, required = true)]
-    pub playlist_title: String,
-    /// Space separated list of video IDs
-    #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = false)]
-    pub ids: Option<Vec<String>>,
 }
 
 #[derive(Debug, Args)]

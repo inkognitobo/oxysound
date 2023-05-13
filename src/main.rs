@@ -1,52 +1,47 @@
 mod args;
+mod config;
 mod error;
 mod playlist;
 mod prelude;
+mod utils;
 mod youtube_api;
 
 use crate::args::{Arguments, Operation};
-use crate::playlist::{load_playlist, Playlist, Video};
-use crate::prelude::*;
+use crate::config::Config;
+use crate::playlist::{load_playlist, Playlist};
 use clap::Parser;
-use dotenv::dotenv;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    dotenv().ok();
-
-    const FILE_PATH: &str = "./";
+async fn main() -> std::result::Result<(), anyhow::Error> {
+    let config: Config = confy::load::<Config>("oxysound", "config")?.assert_values()?;
 
     let arguments = Arguments::parse();
 
     let playlist = match &arguments.operation {
-        Operation::Create(create_args) => {
-            let mut playlist = match &create_args.ids {
-                Some(ids) => {
-                    let videos = ids
-                        .iter()
-                        .map(|id| id.to_string())
-                        .map(Video::from)
-                        .collect();
-                    Playlist::new_with_videos(&create_args.playlist_title, videos)
-                }
-                None => Playlist::new(&create_args.playlist_title),
-            };
-            playlist.fetch_metadata().await?;
-            playlist
-        }
         Operation::Add(args) => {
-            let mut playlist = load_playlist(&args.playlist_title, FILE_PATH)?;
+            let mut playlist = match load_playlist(&args.playlist_title, &config.save_directory)? {
+                Some(playlist) => playlist,
+                None => Playlist::new(&args.playlist_title),
+            };
             playlist.add_videos(&args.ids);
             playlist.fetch_metadata().await?;
             playlist
         }
         Operation::Remove(args) => {
-            let mut playlist = load_playlist(&args.playlist_title, FILE_PATH)?;
+            let mut playlist = match load_playlist(&args.playlist_title, &config.save_directory)? {
+                Some(playlist) => playlist,
+                None => Playlist::new(&args.playlist_title),
+            };
             playlist.remove_videos(&args.ids);
             playlist
         }
         Operation::Print(args) => match (&args.playlist_title, &args.ids) {
-            (Some(playlist_title), None) => load_playlist(playlist_title, FILE_PATH)?,
+            (Some(playlist_title), None) => {
+                match load_playlist(playlist_title, &config.save_directory)? {
+                    Some(playlist) => playlist,
+                    None => Playlist::new(playlist_title),
+                }
+            }
             (None, Some(ids)) => {
                 let mut playlist = Playlist::default();
                 playlist.add_videos(ids);
@@ -62,7 +57,7 @@ async fn main() -> Result<()> {
     // Save the playlist depending on the selected operation
     match arguments.operation {
         Operation::Print(_) => (),
-        _ => playlist.save_playlist(FILE_PATH)?,
+        _ => playlist.save_playlist(&config.save_directory)?,
     }
 
     Ok(())

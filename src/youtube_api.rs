@@ -1,3 +1,6 @@
+//! Handles calls to the YouTube API
+
+use crate::config::Config;
 use crate::prelude::*;
 use reqwest::header;
 use reqwest::Client;
@@ -35,7 +38,8 @@ pub struct Response {
 
 fn create_videos_request(video_ids: &[String]) -> Result<String> {
     const API_URL: &str = "https://youtube.googleapis.com/youtube/v3/videos?part=snippet%2CcontentDetails%2Cstatistics";
-    let api_key = std::env::var("YOUTUBE_API_KEY")?;
+    let config: Config = confy::load("oxysound", "config")?;
+    let api_key = config.youtube_api_key;
     let key_url = format!("&key={}", api_key);
 
     let id_url = format!("&id={}", video_ids.join(","));
