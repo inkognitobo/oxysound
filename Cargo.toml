@@ -1,9 +1,13 @@
 [package]
 name = "oxysound"
 version = "0.1.0"
+authors = ["inkognitobo"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Rust powered command line tool to create account independant YouTube playlists"
+repository = "https://github.com/inkognitobo/oxysound"
+license = "MIT"
+keywords = ["rust", "youtube", "playlist"]
+categories = ["comand-line-utilities"]
 
 [dependencies]
 anyhow = "1.0.71"
