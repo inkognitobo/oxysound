@@ -45,8 +45,8 @@ impl From<ResponseItem> for Video {
     fn from(value: ResponseItem) -> Self {
         let mut video = Self {
             id: value.id,
-            title: value.snippet.title,
-            published_at: value.snippet.published_at,
+            title: value.snippet.title.unwrap_or_default(),
+            published_at: value.snippet.published_at.unwrap_or_default(),
             fetched: true,
             ..Default::default()
         };
@@ -222,7 +222,13 @@ pub fn load_playlist(
     file_path = utils::expand_path_aliases(file_path);
 
     match load_or_create_file(file_path)? {
-        None => Ok(None),
+        None => {
+            println!(
+                "Playlist {0} does not exist, creating {0} instead",
+                &playlist_title
+            );
+            Ok(None)
+        }
         Some(playlist_json) => {
             let playlist = serde_json::from_str(&playlist_json)?;
             Ok(playlist)

@@ -10,13 +10,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseSnippet {
-    pub published_at: String,
-    pub channel_id: String,
-    pub title: String,
-    pub description: String,
-    pub channel_title: String,
-    pub tags: Vec<String>,
-    pub category_id: String,
+    pub published_at: Option<String>,
+    pub channel_id: Option<String>,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub channel_title: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub category_id: Option<String>,
 }
 
 /// Data structure for a response item
@@ -50,13 +50,12 @@ fn create_videos_request(video_ids: &[String]) -> Result<String> {
 pub async fn make_video_request(video_ids: &[String]) -> Result<Response> {
     let url = create_videos_request(video_ids)?;
     let client = Client::new();
-    let response: Response = client
-        .get(url)
+    let response = client
+        .get(&url)
         .header(header::ACCEPT, "application/json")
         .send()
         .await?
         .json()
         .await?;
-
     Ok(response)
 }
