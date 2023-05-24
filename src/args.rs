@@ -18,6 +18,8 @@ pub enum Operation {
     Remove(ModifyArgs),
     /// Print playlist URL of an existing playlist or list of IDs
     Print(PrintArgs),
+    /// List existing playlists
+    List,
 }
 
 #[derive(Debug, Args)]

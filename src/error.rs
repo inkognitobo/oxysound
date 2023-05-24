@@ -5,6 +5,9 @@ pub enum Error {
     #[error("Required values missing from config: {0}\nShould be configured here: {1}")]
     MissingConfig(String, String),
 
+    #[error("Couldn't convert `PathBuf` to `String`: {0}")]
+    StringFromPathBuf(String),
+
     #[error("Response didn't yield enough items (expected: {0}, found: {1}")]
     NotEnoughResponseItems(u8, u8),
 

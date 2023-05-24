@@ -6,6 +6,9 @@ mod prelude;
 mod utils;
 mod youtube_api;
 
+use std::fs::read_dir;
+use std::path::PathBuf;
+
 use crate::args::{Arguments, Operation};
 use crate::playlist::Playlist;
 use crate::prelude::*;
@@ -17,6 +20,7 @@ use crate::prelude::*;
 pub async fn run(args: Arguments, save_directory: impl Into<String>) -> Result<()> {
     let save_directory = save_directory.into();
     let mut save = false;
+    let mut print_url = true;
 
     let playlist = match args.operation {
         Operation::Add(args) => {
@@ -28,9 +32,17 @@ pub async fn run(args: Arguments, save_directory: impl Into<String>) -> Result<(
             remove(args.playlist_title, args.ids, &save_directory)?
         }
         Operation::Print(args) => print(args.playlist_title, args.ids, &save_directory)?,
+        Operation::List => {
+            print_url = false;
+            list(&save_directory)?;
+            Playlist::default()
+        }
     };
 
-    println!("Playlist URL:\n{:?}", playlist.url());
+    // Print playlist URL depending on the selected operation
+    if print_url {
+        println!("Playlist URL:\n{:?}", playlist.url());
+    }
 
     // Save the playlist depending on the selected operation
     if save {
@@ -114,4 +126,30 @@ fn print(
         _ => unreachable!(),
         // Unreachable because `PrintArgs.playlist_title` and `PrintArgs.ids` are mutually exclusive
     }
+}
+
+/// Print a list of all available playlists
+///
+/// * `file_directory` - location to look for playlists
+fn list(file_path: impl Into<String>) -> Result<()> {
+    let file_path = file_path.into();
+    let mut file_path: PathBuf = PathBuf::from(&file_path);
+
+    file_path = utils::expand_path_aliases(file_path);
+
+    println!("Available playlists at {:?}:", &file_path);
+
+    for entry in read_dir(&file_path)?.filter_map(|entry| entry.ok()) {
+        let entry = entry.path();
+        let entry = entry
+            .file_stem()
+            .ok_or_else(|| Error::StringFromPathBuf(format!("{:?}", entry)))?
+            .to_str()
+            .map(String::from)
+            .ok_or_else(|| Error::StringFromPathBuf(format!("{:?}", entry)))?;
+
+        println!("- {}", entry);
+    }
+
+    Ok(())
 }
