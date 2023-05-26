@@ -41,7 +41,7 @@ pub async fn run(args: Arguments, save_directory: impl Into<String>) -> Result<(
 
     // Print playlist URL depending on the selected operation
     if print_url {
-        println!("Playlist URL:\n{:?}", playlist.url());
+        println!("{}", playlist);
     }
 
     // Save the playlist depending on the selected operation

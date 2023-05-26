@@ -4,6 +4,7 @@ use crate::error::Error;
 use crate::youtube_api::{self, ResponseItem};
 use crate::{prelude::*, utils};
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use std::fs::{self};
 use std::path::PathBuf;
 
@@ -61,6 +62,19 @@ impl PartialEq for Video {
     }
 }
 
+impl Display for Video {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let date_and_time = self.published_at.split("T").collect::<Vec<&str>>();
+        let date = date_and_time.first().unwrap_or(&"unknown date");
+
+        return write!(
+            f,
+            "{}\n\tID: {}\n\tPublished at: {}\n\tURL: {}",
+            self.title, self.id, date, self.url
+        );
+    }
+}
+
 impl Video {
     /// Update fields that depend on other fields
     /// e.g. `self.url` depends on `self.id`
@@ -88,6 +102,23 @@ impl Default for Playlist {
             videos: Vec::new(),
             url: "http://www.youtube.com/watch_videos?video_ids=".into(),
         }
+    }
+}
+
+impl Display for Playlist {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let videos = self
+            .videos
+            .iter()
+            .map(|video| format!("{}", video).replace("\t", "\t\t"))
+            .map(|video_string| format!("\t{}", video_string))
+            .collect::<Vec<String>>()
+            .join("\n\n");
+        write!(
+            f,
+            "{}\n----------\nlength: {}\nvideos: \n{}\n\nplaylist URL: {}",
+            self.title, self.num_items, videos, self.url
+        )
     }
 }
 
@@ -194,14 +225,6 @@ impl Playlist {
         fs::write(file_path, playlist_json)?;
 
         Ok(())
-    }
-}
-
-/// Getter/setter functions
-impl Playlist {
-    /// URL
-    pub fn url(&self) -> &str {
-        &self.url
     }
 }
 
