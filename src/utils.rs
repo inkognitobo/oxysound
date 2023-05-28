@@ -38,9 +38,13 @@ pub fn expand_path_aliases(file_path: PathBuf) -> PathBuf {
             .map(|component| {
                 if let Some(component_str) = component.to_str() {
                     match component_str {
-                        "$HOME" => base_dirs.home_dir().as_os_str(),
-                        "$XDG_CACHE_HOME" => base_dirs.cache_dir().as_os_str(),
-                        "$XDG_CONFIG_HOME" => base_dirs.config_dir().as_os_str(),
+                        "$HOME" | "{FOLDERID_Profile}" => base_dirs.home_dir().as_os_str(),
+                        "$XDG_CACHE_HOME" | "{FOLDERID_LocalAppData}" => {
+                            base_dirs.cache_dir().as_os_str()
+                        }
+                        "$XDG_CONFIG_HOME" | "{FOLDERID_RoamingAppData}" => {
+                            base_dirs.config_dir().as_os_str()
+                        }
                         "$XDG_DATA_HOME" => base_dirs.data_dir().as_os_str(),
                         "$XDG_BIN_HOME" => base_dirs
                             .executable_dir()
