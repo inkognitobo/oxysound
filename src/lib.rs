@@ -110,8 +110,7 @@ fn print(
             playlist.add_videos(&ids);
             playlist
         }
-        _ => unreachable!(),
-        // Unreachable because `PrintArgs.playlist_title` and `PrintArgs.ids` are mutually exclusive
+        _ => unreachable!("Unreachable because `PrintArgs.playlist_title` and `PrintArgs.ids` are mutually exclusive"),
     };
 
     println!("{}", playlist);
