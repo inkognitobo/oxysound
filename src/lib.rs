@@ -1,3 +1,5 @@
+//! Main crate logic
+
 pub mod args;
 pub mod config;
 mod error;

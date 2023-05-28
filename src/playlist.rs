@@ -1,4 +1,4 @@
-//! Main crate logic
+//! Playlist API
 
 use crate::error::Error;
 use crate::youtube_api::{self, ResponseItem};
@@ -64,14 +64,14 @@ impl PartialEq for Video {
 
 impl Display for Video {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let date_and_time = self.published_at.split("T").collect::<Vec<&str>>();
+        let date_and_time = self.published_at.split('T').collect::<Vec<&str>>();
         let date = date_and_time.first().unwrap_or(&"unknown date");
 
-        return write!(
+        write!(
             f,
             "{}\n\tID: {}\n\tPublished at: {}\n\tURL: {}",
             self.title, self.id, date, self.url
-        );
+        )
     }
 }
 
@@ -110,7 +110,7 @@ impl Display for Playlist {
         let videos = self
             .videos
             .iter()
-            .map(|video| format!("{}", video).replace("\t", "\t\t"))
+            .map(|video| format!("{}", video).replace('\t', "\t\t"))
             .map(|video_string| format!("\t{}", video_string))
             .collect::<Vec<String>>()
             .join("\n\n");
@@ -181,7 +181,7 @@ impl Playlist {
     }
 
     /// Use YouTube's API to accumulate video meta data in `self.videos`
-    /// Only request data for videos, that has no attached meta data yet
+    /// Only request data for videos, that have no attached meta data yet
     pub async fn fetch_metadata(&mut self) -> Result<()> {
         let ids: Vec<String> = self
             .videos
@@ -228,7 +228,7 @@ impl Playlist {
     }
 }
 
-/// Return a `Playlist` instance.
+/// Return a `Playlist` instance
 ///
 /// Try to load content from a JSON file and deserialize into `Playlist` instance
 /// * `playlist_title` - name of the playlist
@@ -244,7 +244,7 @@ pub fn load_playlist(
 
     file_path = utils::expand_path_aliases(file_path);
 
-    match load_or_create_file(file_path)? {
+    match utils::load_or_create_file(file_path)? {
         None => {
             println!(
                 "Playlist {0} does not exist, creating {0} instead",
@@ -256,27 +256,6 @@ pub fn load_playlist(
             let playlist = serde_json::from_str(&playlist_json)?;
             Ok(playlist)
         }
-    }
-}
-
-/// Return file content if file exists, else create the file
-///
-/// Try to read file content to `String`
-/// If the file exists, return content
-/// If the file doesn't exist, try to create it and return `None`
-/// * `file_path` - full file path (e.g. "./test.json")
-fn load_or_create_file(file_path: PathBuf) -> Result<Option<String>> {
-    let file_path = utils::expand_path_aliases(file_path);
-
-    match fs::read_to_string(&file_path) {
-        Ok(content) => Ok(Some(content)),
-        Err(error) => match error.kind() {
-            std::io::ErrorKind::NotFound => {
-                fs::File::create(&file_path)?;
-                Ok(None)
-            }
-            _ => Err(Error::from(error)),
-        },
     }
 }
 
@@ -349,6 +328,7 @@ mod tests {
             title: "test".into(),
             ..Default::default()
         };
+
         playlist.add_videos(&["id_1".into(), "id_2".into()]);
 
         assert_eq!(
@@ -369,6 +349,31 @@ mod tests {
                 url: "http://www.youtube.com/watch_videos?video_ids=id_1,id_2".into()
             }
         );
+
+        playlist.add_videos(&["id_3".into()]);
+
+        assert_eq!(
+            playlist,
+            Playlist {
+                title: "test".into(),
+                num_items: 3,
+                videos: vec![
+                    Video {
+                        id: "id_1".into(),
+                        ..Default::default()
+                    },
+                    Video {
+                        id: "id_2".into(),
+                        ..Default::default()
+                    },
+                    Video {
+                        id: "id_3".into(),
+                        ..Default::default()
+                    }
+                ],
+                url: "http://www.youtube.com/watch_videos?video_ids=id_1,id_2,id_3".into()
+            }
+        );
     }
 
     #[test]
@@ -376,10 +381,27 @@ mod tests {
         let mut playlist = Playlist {
             title: "test".into(),
             num_items: 2,
-            videos: vec!["id_1".to_string().into(), "id_2".to_string().into()],
-            url: "http://www.youtube.com/watch_videos?video_ids=id_1,id_2".into(),
+            videos: vec![
+                "id_1".to_string().into(),
+                "id_2".to_string().into(),
+                "id_3".to_string().into(),
+            ],
+            url: "http://www.youtube.com/watch_videos?video_ids=id_1,id_2,id_3".into(),
         };
+
         playlist.remove_videos(&["id_1".into(), "id_2".into()]);
+
+        assert_eq!(
+            playlist,
+            Playlist {
+                title: "test".into(),
+                num_items: 1,
+                videos: vec!["id_3".to_string().into()],
+                url: "http://www.youtube.com/watch_videos?video_ids=id_3".into()
+            }
+        );
+
+        playlist.remove_videos(&["id_3".into()]);
 
         assert_eq!(
             playlist,
@@ -466,6 +488,24 @@ mod tests {
                 .expect("Test playlist should have one video")
                 .title,
             "Rick Astley - Never Gonna Give You Up (Official Music Video)"
+        );
+        assert_eq!(
+            playlist
+                .videos
+                .iter()
+                .next()
+                .expect("Test playlist should have one video")
+                .id,
+            "dQw4w9WgXcQ"
+        );
+        assert_eq!(
+            playlist
+                .videos
+                .iter()
+                .next()
+                .expect("Test playlist should have one video")
+                .published_at,
+            "2009-10-25T06:57:33Z"
         );
 
         Ok(())
