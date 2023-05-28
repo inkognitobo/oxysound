@@ -226,35 +226,35 @@ impl Playlist {
 
         Ok(())
     }
-}
 
-/// Return a `Playlist` instance
-///
-/// Try to load content from a JSON file and deserialize into `Playlist` instance
-/// * `playlist_title` - name of the playlist
-/// * `file_path` - path to the save directory
-pub fn load_playlist(
-    playlist_title: impl Into<String>,
-    file_path: impl Into<String>,
-) -> Result<Option<Playlist>> {
-    let playlist_title = playlist_title.into();
-    let file_path = file_path.into();
-    let mut file_path: PathBuf = [&file_path, &playlist_title].iter().collect();
-    file_path.set_extension("json");
+    /// Return a `Playlist` instance
+    ///
+    /// Try to load content from a JSON file and deserialize into `Playlist` instance
+    /// * `playlist_title` - name of the playlist
+    /// * `file_path` - path to the save directory
+    pub fn load_playlist(
+        playlist_title: impl Into<String>,
+        file_path: impl Into<String>,
+    ) -> Result<Option<Playlist>> {
+        let playlist_title = playlist_title.into();
+        let file_path = file_path.into();
+        let mut file_path: PathBuf = [&file_path, &playlist_title].iter().collect();
+        file_path.set_extension("json");
 
-    file_path = utils::expand_path_aliases(file_path);
+        file_path = utils::expand_path_aliases(file_path);
 
-    match utils::load_or_create_file(file_path)? {
-        None => {
-            println!(
-                "Playlist {0} does not exist, creating {0} instead",
-                &playlist_title
-            );
-            Ok(None)
-        }
-        Some(playlist_json) => {
-            let playlist = serde_json::from_str(&playlist_json)?;
-            Ok(playlist)
+        match utils::load_or_create_file(file_path)? {
+            None => {
+                println!(
+                    "Playlist {0} does not exist, creating {0} instead",
+                    &playlist_title
+                );
+                Ok(None)
+            }
+            Some(playlist_json) => {
+                let playlist = serde_json::from_str(&playlist_json)?;
+                Ok(playlist)
+            }
         }
     }
 }

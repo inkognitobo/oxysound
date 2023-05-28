@@ -21,35 +21,15 @@ use crate::prelude::*;
 /// * `save_directory` - location to look for saved playlists and save playlist after applying changes
 pub async fn run(args: Arguments, save_directory: impl Into<String>) -> Result<()> {
     let save_directory = save_directory.into();
-    let mut save = false;
-    let mut print_url = true;
 
-    let playlist = match args.operation {
-        Operation::Add(args) => {
-            save = true;
-            add(args.playlist_title, args.ids, &save_directory).await?
-        }
-        Operation::Remove(args) => {
-            save = true;
-            remove(args.playlist_title, args.ids, &save_directory)?
-        }
+    match args.operation {
+        Operation::Add(args) => add(args.playlist_title, args.ids, &save_directory).await?,
+        Operation::Remove(args) => remove(args.playlist_title, args.ids, &save_directory)?,
         Operation::Print(args) => print(args.playlist_title, args.ids, &save_directory)?,
         Operation::List => {
-            print_url = false;
             list(&save_directory)?;
-            Playlist::default()
         }
     };
-
-    // Print playlist URL depending on the selected operation
-    if print_url {
-        println!("{}", playlist);
-    }
-
-    // Save the playlist depending on the selected operation
-    if save {
-        playlist.save_playlist(&save_directory)?;
-    }
 
     Ok(())
 }
@@ -62,19 +42,20 @@ pub async fn run(args: Arguments, save_directory: impl Into<String>) -> Result<(
 /// * `playlist_title` - name of the playlist
 /// * `ids` - list of video IDs
 /// * `file_directory` - location to look for existing playlist or save new playlist
-async fn add(
-    playlist_title: String,
-    ids: Vec<String>,
-    file_path: impl Into<String>,
-) -> Result<Playlist> {
-    let mut playlist = match playlist::load_playlist(&playlist_title, file_path)? {
+async fn add(playlist_title: String, ids: Vec<String>, file_path: impl Into<String>) -> Result<()> {
+    let file_path = file_path.into();
+
+    let mut playlist = match Playlist::load_playlist(&playlist_title, &file_path)? {
         Some(playlist) => playlist,
         None => Playlist::new(&playlist_title),
     };
     playlist.add_videos(&ids);
     playlist.fetch_metadata().await?;
 
-    Ok(playlist)
+    println!("{}", playlist);
+    playlist.save_playlist(&file_path)?;
+
+    Ok(())
 }
 
 /// Remove videos from playlist
@@ -86,17 +67,19 @@ async fn add(
 /// * `playlist_title` - name of the playlist
 /// * `ids` - list of video IDs
 /// * `file_directory` - location to look for existing playlist or save new playlist
-fn remove(
-    playlist_title: String,
-    ids: Vec<String>,
-    file_path: impl Into<String>,
-) -> Result<Playlist> {
-    let mut playlist = match playlist::load_playlist(&playlist_title, file_path)? {
+fn remove(playlist_title: String, ids: Vec<String>, file_path: impl Into<String>) -> Result<()> {
+    let file_path = file_path.into();
+
+    let mut playlist = match Playlist::load_playlist(&playlist_title, &file_path)? {
         Some(playlist) => playlist,
         None => Playlist::new(&playlist_title),
     };
     playlist.remove_videos(&ids);
-    Ok(playlist)
+
+    println!("{}", playlist);
+    playlist.save_playlist(&file_path)?;
+
+    Ok(())
 }
 
 /// Print playlist URL to `stdout`
@@ -112,22 +95,28 @@ fn print(
     playlist_title: Option<String>,
     ids: Option<Vec<String>>,
     file_path: impl Into<String>,
-) -> Result<Playlist> {
-    match (playlist_title, ids) {
+) -> Result<()> {
+    let file_path = file_path.into();
+
+    let playlist = match (playlist_title, ids) {
         (Some(playlist_title), None) => {
-            match playlist::load_playlist(&playlist_title, file_path)? {
-                Some(playlist) => Ok(playlist),
-                None => Ok(Playlist::new(&playlist_title)),
+            match Playlist::load_playlist(&playlist_title, file_path)? {
+                Some(playlist) => playlist,
+                None => Playlist::new(&playlist_title),
             }
         }
         (None, Some(ids)) => {
             let mut playlist = Playlist::default();
             playlist.add_videos(&ids);
-            Ok(playlist)
+            playlist
         }
         _ => unreachable!(),
         // Unreachable because `PrintArgs.playlist_title` and `PrintArgs.ids` are mutually exclusive
-    }
+    };
+
+    println!("{}", playlist);
+
+    Ok(())
 }
 
 /// Print a list of all available playlists
