@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     // E.g. "KiasdlLLkgUUIOOsd-7ASGkdskgT9ka9JlsdgkP" <- just an example key
     pub youtube_api_key: String,
-    // E.g. "$HOME/documents/oxysound/playlists/"
+    // E.g. "$XDG_DATA_HOME/oxysound/playlists"
     pub save_directory: String,
 }
 
@@ -15,7 +15,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             youtube_api_key: "".into(),
-            save_directory: "".into(),
+            save_directory: "$XDG_DATA_HOME/oxysound/playlists".into(),
         }
     }
 }
