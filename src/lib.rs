@@ -1,5 +1,12 @@
 //! Main crate logic
 
+use std::fs::read_dir;
+use std::path::PathBuf;
+
+use crate::args::{Arguments, Operation};
+use crate::playlist::Playlist;
+use crate::prelude::*;
+
 pub mod args;
 pub mod config;
 mod error;
@@ -7,13 +14,6 @@ mod playlist;
 mod prelude;
 mod utils;
 mod youtube_api;
-
-use std::fs::read_dir;
-use std::path::PathBuf;
-
-use crate::args::{Arguments, Operation};
-use crate::playlist::Playlist;
-use crate::prelude::*;
 
 /// Run the application
 ///

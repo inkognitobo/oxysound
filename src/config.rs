@@ -29,8 +29,8 @@ impl Config {
             .to_str()
             // This should realistically never happen
             // Suggests that the user specified a user name that contains invalid Unicode
-            // Hence the e.g. `home/USER_NAME/.config` contains invalid Unicode
-            .expect("Default config path should realistically always be valid Unicode")
+            // Hence e.g. `home/USER_NAME/.config` contains invalid Unicode
+            .expect("Path contains non-UTF-8 strings")
             .to_string();
         if self.youtube_api_key.is_empty() {
             return Err(Error::MissingConfig(
