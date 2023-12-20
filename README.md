@@ -16,7 +16,7 @@
 ## 🛠️ Setup
 
 To utilise all features obtain an API key for [YouTube's Data API](https://console.cloud.google.com/apis/library/youtube.googleapis.com).
-See [Configuration](README.md#⚙️-configuration) for more information.
+See [Configuration](https://github.com/inkognitobo/oxysound?tab=readme-ov-file#%EF%B8%8F-configuration) for more information.
 
 ## ⚙️ Configuration
 
