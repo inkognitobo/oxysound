@@ -3,20 +3,25 @@
 ![build](https://github.com/inkognitobo/oxysound/actions/workflows/rust_build.yml/badge.svg)
 ![test](https://github.com/inkognitobo/oxysound/actions/workflows/rust_test.yml/badge.svg)
 
-Rust powered command line tool to create account independent YouTube playlists by composing a URL using `http://www.youtube.com/watch_videos?video_ids=` and a comma separated list of YouTube video IDs.
+<p align="center">
+🎵 Rust powered command line tool to create and manage account independent YouTube playlists. 🎵
+</p>
 
-Playlists can be created, modified and saved as `JSON` encoded files via the command line interface.
+## 💡 Features
 
-To simply compose a playlist URL of a list of video IDs use the `print` operation:
-```
-oxysound print --ids <IDS>...>
-```
+- Quickly generate a playlist URL of a list of video IDs using `oxysound print --ids <IDS>...`.
+- Create and manage YouTube playlists and save them as `.json` files.
+- Fetching video meta data via YouTube's API
 
-All other operations will request video meta data (such as title, etc.) via YouTube's API and thus require a valid API key.
+## 🛠️ Setup
+
+To utilise all features obtain an API key for [YouTube's Data API](https://console.cloud.google.com/apis/library/youtube.googleapis.com).
+See [Configuration](README.md#⚙️-configuration) for more information.
+
+## ⚙️ Configuration
 
 The API key and save directory can be configured via a `config.toml` file. 
-When running e.g. `oxysound print --ids dQw4w9WgXcQ` for the first time, the application will ask the user to configure these values and inform them about the config file path.
-For example on linux the config file will be located at `$HOME/.config/oxysound/config.toml`.
+When running a command like `oxysound --help` for the first time, the application will ask the user to configure these values and inform them about the config file path.
+For example on Linux the config file will be located at `$HOME/.config/oxysound/config.toml`.
 
 For more information run `oxysound --help`.
-    
