@@ -13,6 +13,15 @@
 - Create and manage YouTube playlists and save them as `.json` files.
 - Fetching video meta data via YouTube's API
 
+## 🔌 Installation
+
+Download the latest [release](https://github.com/inkognitobo/oxysound/releases/latest) or build from source:
+```
+git clone https://github.com/inkognitobo/oxysound.git
+cd oxysound
+cargo build --release
+```
+
 ## 🛠️ Setup
 
 To utilise all features obtain an API key for [YouTube's Data API](https://console.cloud.google.com/apis/library/youtube.googleapis.com).
